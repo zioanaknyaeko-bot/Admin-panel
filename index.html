@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard | Fake Data Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            font-family: 'Courier New', monospace;
+            color: #ff4444;
+            min-height: 100vh;
+        }
+        .header {
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #ff4444;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 30px auto;
+            padding: 20px;
+        }
+        .card {
+            background: rgba(0,0,0,0.7);
+            border: 1px solid #ff4444;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card h3 { margin-bottom: 15px; color: #ff4444; }
+        .btn {
+            padding: 10px 20px;
+            background: #1a1a2e;
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            cursor: pointer;
+            font-family: monospace;
+            transition: 0.3s;
+        }
+        .btn:hover { background: #ff4444; color: #000; }
+        input, select, textarea {
+            background: #0a0a1a;
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 8px;
+            font-family: monospace;
+        }
+        .license-item {
+            background: #1a1a2e;
+            padding: 10px;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-active { color: #00ff41; }
+        .status-expired { color: #ff4444; }
+        .copyright { text-align: center; padding: 20px; color: #555; }
+    </style>
+</head>
+<body>
+<div class="header">
+    <h1>👑 ADMIN DASHBOARD</h1>
+    <p>Manage Licenses | Maintenance | Version Control</p>
+</div>
+<div class="container">
+    <div class="card">
+        <h3>🔑 Generate License Key</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <input type="number" id="licenseDays" placeholder="Days (1-365)" value="30" style="flex:1">
+            <button class="btn" onclick="generateLicense()">GENERATE</button>
+        </div>
+        <div id="newLicense" style="margin-top: 15px; background:#0a0a1a; padding:10px; word-break:break-all;"></div>
+    </div>
+
+    <div class="card">
+        <h3>📋 Active Licenses</h3>
+        <div id="licenseList"></div>
+    </div>
+
+    <div class="card">
+        <h3>⚙️ System Control</h3>
+        <button class="btn" id="maintenanceBtn" onclick="toggleMaintenance()">🔧 ENABLE MAINTENANCE</button>
+        <p style="margin-top:10px; font-size:12px;">Maintenance mode will block user access</p>
+    </div>
+
+    <div class="card">
+        <h3>📌 Version & Release Notes</h3>
+        <label>Current Version:</label>
+        <input type="text" id="systemVersion" value="13.0.0" style="width:150px; margin-left:10px;">
+        <button class="btn" onclick="updateVersion()" style="margin-left:10px;">UPDATE</button>
+        <br><br>
+        <label>Release Notes:</label>
+        <textarea id="releaseNotes" rows="4" style="width:100%; margin-top:5px;"></textarea>
+    </div>
+
+    <div class="card">
+        <h3>📊 System Statistics</h3>
+        <div id="stats">Loading...</div>
+    </div>
+</div>
+<div class="copyright">Copyright © YutoriLiona</div>
+
+<script>
+    let licenses = [];
+
+    function loadData() {
+        let saved = localStorage.getItem('admin_licenses');
+        if(saved) licenses = JSON.parse(saved);
+        else {
+            licenses = [{ key: 'TRK-ADMIN-001', expires: '2030-12-31T00:00:00.000Z', created: new Date().toISOString(), active: true }];
+            saveLicenses();
+        }
+        displayLicenses();
+        updateStats();
+        loadVersion();
+        updateMaintenanceButton();
+    }
+
+    function saveLicenses() { localStorage.setItem('admin_licenses', JSON.stringify(licenses)); }
+
+    function generateLicenseKey() { return 'TRK-' + Math.random().toString(36).substring(2,10).toUpperCase() + '-' + Math.random().toString(36).substring(2,6).toUpperCase(); }
+
+    function generateLicense() {
+        let days = parseInt(document.getElementById('licenseDays').value) || 30;
+        let key = generateLicenseKey();
+        let expires = new Date();
+        expires.setDate(expires.getDate() + days);
+        licenses.push({ key: key, expires: expires.toISOString(), created: new Date().toISOString(), active: true });
+        saveLicenses();
+        displayLicenses();
+        updateStats();
+        document.getElementById('newLicense').innerHTML = `<strong>New Key:</strong> ${key}<br>Expires: ${expires.toLocaleDateString()}`;
+    }
+
+    function revokeLicense(key) {
+        licenses = licenses.filter(l => l.key !== key);
+        saveLicenses();
+        displayLicenses();
+        updateStats();
+    }
+
+    function displayLicenses() {
+        let container = document.getElementById('licenseList');
+        if(!container) return;
+        container.innerHTML = '';
+        licenses.forEach(l => {
+            let expired = new Date(l.expires) < new Date();
+            let div = document.createElement('div');
+            div.className = 'license-item';
+            div.innerHTML = `
+                <span>${l.key}</span>
+                <span class="${expired ? 'status-expired' : 'status-active'}">${expired ? 'EXPIRED' : 'ACTIVE'}</span>
+                <span>Exp: ${new Date(l.expires).toLocaleDateString()}</span>
+                <button class="btn" style="padding:2px 8px;" onclick="revokeLicense('${l.key}')">REVOKE</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function updateStats() {
+        let active = licenses.filter(l => new Date(l.expires) > new Date() && l.active).length;
+        document.getElementById('stats').innerHTML = `Total Licenses: ${licenses.length}<br>Active Licenses: ${active}`;
+    }
+
+    function toggleMaintenance() {
+        let current = localStorage.getItem('maintenance_mode') === 'true';
+        localStorage.setItem('maintenance_mode', !current);
+        updateMaintenanceButton();
+    }
+
+    function updateMaintenanceButton() {
+        let isMaint = localStorage.getItem('maintenance_mode') === 'true';
+        let btn = document.getElementById('maintenanceBtn');
+        if(isMaint) {
+            btn.innerHTML = '🔧 DISABLE MAINTENANCE';
+            btn.style.borderColor = '#00ff41';
+        } else {
+            btn.innerHTML = '🔧 ENABLE MAINTENANCE';
+            btn.style.borderColor = '#ff4444';
+        }
+    }
+
+    function updateVersion() {
+        let newVer = document.getElementById('systemVersion').value;
+        let notes = document.getElementById('releaseNotes').value;
+        localStorage.setItem('system_version', newVer);
+        localStorage.setItem('release_notes', notes);
+        alert(`Version updated to ${newVer}`);
+    }
+
+    function loadVersion() {
+        let ver = localStorage.getItem('system_version');
+        if(ver) document.getElementById('systemVersion').value = ver;
+        let notes = localStorage.getItem('release_notes');
+        if(notes) document.getElementById('releaseNotes').value = notes;
+        else document.getElementById('releaseNotes').value = '- Initial release\n- Added barcode generator\n- Admin control system';
+    }
+
+    loadData();
+</script>
+</body>
+</html>
